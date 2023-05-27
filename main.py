@@ -4,104 +4,148 @@ import requests
 import whois
 import dns.resolver
 
-def perform_whois_lookup(domain):
-    # Perform whois lookup
-    w = whois.whois(domain)
-    print(w)
+class Reconnaissance:
+    @staticmethod
+    def perform_whois_lookup(domain):
+        w = whois.whois(domain)
+        print(w)
 
-def perform_dns_enumeration(domain):
-    # Enumerate DNS records
-    dns_records = dns.resolver.query(domain, 'A')
-    for record in dns_records:
-        print(record)
+    @staticmethod
+    def perform_dns_enumeration(domain):
+        dns_records = dns.resolver.query(domain, 'A')
+        for record in dns_records:
+            print(record)
 
-def perform_subdomain_enumeration(domain):
-    # Use sublist3r or another subdomain enumeration tool
-    subprocess.run(['sublist3r', '-d', domain])
+    @staticmethod
+    def perform_subdomain_enumeration(domain):
+        subprocess.run(['sublist3r', '-d', domain])
 
-def perform_port_scanning(target):
-    # Perform port scanning using nmap
-    subprocess.run(['nmap', '-p-', target])
+    @staticmethod
+    def extract_service_headers(target):
+        response = requests.get(target)
+        print(response.headers)
 
-def extract_service_headers(target):
-    # Extract headers from a service
-    response = requests.get(target)
-    print(response.headers)
+class Scanning:
+    @staticmethod
+    def perform_port_scanning(target):
+        subprocess.run(['nmap', '-p-', target])
 
-def perform_service_enumeration(target):
-    # Implement service enumeration techniques
-    # Add code to gather information about running services
-    pass
+class Enumeration:
+    @staticmethod
+    def perform_service_enumeration(target):
+        open_ports = Scanning.perform_port_scanning(target)
+        for port in open_ports:
+            service_info = Enumeration.get_service_info(target, port)
+            print(f"Port: {port}\tService: {service_info}")
 
-def perform_vulnerability_checks(target):
-    # Implement vulnerability scanning techniques
-    # Add code to perform common vulnerability checks
-    pass
+    @staticmethod
+    def get_service_info(target, port):
+        service_info = "Unknown"
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            sock.connect((target, port))
+            sock.send(b"GET / HTTP/1.1\r\nHost: " + target.encode() + b"\r\n\r\n")
+            response = sock.recv(1024)
+            service_info = response.decode().splitlines()[0]
+            sock.close()
+        except Exception as e:
+            print(f"Error retrieving service info for port {port}: {str(e)}")
+        return service_info
 
-def perform_web_vulnerability_scanning(target):
-    # Use tools like OWASP ZAP or Nikto for web vulnerability scanning
-    subprocess.run(['zap', '-target', target])
+class VulnerabilityAssessment:
+    @staticmethod
+    def perform_vulnerability_checks(target):
+        scan_results = VulnerabilityAssessment.run_vulnerability_scan(target)
+        VulnerabilityAssessment.process_scan_results(scan_results)
 
-def perform_network_vulnerability_scanning(target):
-    # Implement network vulnerability scanning techniques
-    # Add code to perform network-specific vulnerability checks
-    pass
+    @staticmethod
+    def run_vulnerability_scan(target):
+        command = ['openvas-cli', '-c', 'Full and Fast', '-T', target]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = process.communicate()
+        scan_results = output.decode()
+        return scan_results
 
-def develop_exploit_module(vulnerability):
-    # Develop an exploit module for a specific vulnerability
-    # Add code to exploit the identified vulnerability
-    pass
+    @staticmethod
+    def process_scan_results(scan_results):
+        print("Vulnerability scan results:")
+        print(scan_results)
 
-def automate_exploitation(target):
-    # Automate the exploitation process
-    # Add code to automate the steps required to exploit a vulnerability
-    pass
+    @staticmethod
+    def perform_web_vulnerability_scanning(target):
+        subprocess.run(['zap', '-target', target, '-quickurl', target])
 
-def gain_access(target):
-    # Gain access to the compromised system
-    # Add code to interact with the compromised system
-    pass
+    @staticmethod
+    def perform_network_vulnerability_scanning(target):
+        scan_results = VulnerabilityAssessment.run_network_scan(target)
+        VulnerabilityAssessment.process_scan_results(scan_results)
 
-def enumerate_system_information(target):
-    # Enumerate system information on the compromised system
-    # Add code to gather system-related information
-    pass
+    @staticmethod
+    def run_network_scan(target):
+        command = ['nmap', '-A', target]
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, error = process.communicate()
+        scan_results = output.decode()
+        return scan_results
 
-def generate_report(findings):
-    # Generate a detailed report based on the findings
-    # Add code to generate a report with findings, recommendations, etc.
-    pass
+class Exploitation:
+    @staticmethod
+    def develop_exploit_module(vulnerability):
+        # Implement the code to develop an exploit module
+        pass
 
-# Example usage:
-domain = 'example.com'
-target = '127.0.0.1'
+    @staticmethod
+    def automate_exploitation(target):
+        # Implement the code to automate exploitation
+        pass
 
-# Reconnaissance
-perform_whois_lookup(domain)
-perform_dns_enumeration(domain)
-perform_subdomain_enumeration(domain)
-extract_service_headers(target)
+    @staticmethod
+    def gain_access(target):
+        # Implement the code to gain access to the compromised system
+        pass
 
-# Scanning
-perform_port_scanning(target)
+    @staticmethod
+    def enumerate_system_information(target):
+        # Implement the code to enumerate system information
+        pass
 
-# Enumeration
-perform_service_enumeration(target)
+class Reporting:
+    @staticmethod
+    def generate_report(findings):
+        # Implement the code to generate a report
+        pass
 
-# Vulnerability Assessment
-perform_vulnerability_checks(target)
-perform_web_vulnerability_scanning(target)
-perform_network_vulnerability_scanning(target)
+if __name__ == '__main__':
+    domain = input("Enter the domain: ")
+    target = input("Enter the target IP address: ")
 
-# Exploitation
-vulnerability = 'example_vulnerability'
-develop_exploit_module(vulnerability)
-automate_exploitation(target)
+    # Reconnaissance
+    Reconnaissance.perform_whois_lookup(domain)
+    Reconnaissance.perform_dns_enumeration(domain)
+    Reconnaissance.perform_subdomain_enumeration(domain)
+    Reconnaissance.extract_service_headers(target)
 
-# Post-Exploitation
-gain_access(target)
-enumerate_system_information(target)
+    # Scanning
+    Scanning.perform_port_scanning(target)
 
-# Reporting
-findings = 'example_findings'
-generate_report(findings)
+    # Enumeration
+    Enumeration.perform_service_enumeration(target)
+
+    # Vulnerability Assessment
+    VulnerabilityAssessment.perform_vulnerability_checks(target)
+    VulnerabilityAssessment.perform_web_vulnerability_scanning(target)
+    VulnerabilityAssessment.perform_network_vulnerability_scanning(target)
+
+    # Exploitation
+    vulnerability = 'example_vulnerability'
+    Exploitation.develop_exploit_module(vulnerability)
+    Exploitation.automate_exploitation(target)
+
+    # Post-Exploitation
+    Exploitation.gain_access(target)
+    Exploitation.enumerate_system_information(target)
+
+    # Reporting
+    findings = 'example_findings'
+    Reporting.generate_report(findings)
