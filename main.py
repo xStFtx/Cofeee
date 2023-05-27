@@ -6,29 +6,46 @@ import dns.resolver
 
 class Reconnaissance:
     @staticmethod
-    def perform_whois_lookup(domain):
-        w = whois.whois(domain)
-        print(w)
+    def perform_whois_lookup(target):
+        try:
+            w = whois.whois(target)
+            print(w)
+        except whois.parser.PywhoisError as e:
+            print(f"Error performing WHOIS lookup: {str(e)}")
 
     @staticmethod
-    def perform_dns_enumeration(domain):
-        dns_records = dns.resolver.query(domain, 'A')
-        for record in dns_records:
-            print(record)
+    def perform_dns_enumeration(target):
+        try:
+            if not target.isdigit():
+                target = socket.gethostbyname(target)
+            dns_records = dns.resolver.query(target, 'A')
+            for record in dns_records:
+                print(record)
+        except (dns.resolver.NXDOMAIN, socket.gaierror) as e:
+            print(f"Error performing DNS enumeration: {str(e)}")
 
     @staticmethod
-    def perform_subdomain_enumeration(domain):
-        subprocess.run(['sublist3r', '-d', domain])
+    def perform_subdomain_enumeration(target):
+        try:
+            subprocess.run(['sublist3r', '-d', target])
+        except FileNotFoundError:
+            print("sublist3r tool not found. Install sublist3r or provide another subdomain enumeration tool.")
 
     @staticmethod
     def extract_service_headers(target):
-        response = requests.get(target)
-        print(response.headers)
+        try:
+            response = requests.get(target)
+            print(response.headers)
+        except requests.exceptions.RequestException as e:
+            print(f"Error retrieving service headers: {str(e)}")
 
 class Scanning:
     @staticmethod
     def perform_port_scanning(target):
-        subprocess.run(['nmap', '-p-', target])
+        try:
+            subprocess.run(['nmap', '-p-', target])
+        except FileNotFoundError:
+            print("nmap tool not found. Install nmap or provide another port scanning tool.")
 
 class Enumeration:
     @staticmethod
@@ -61,11 +78,14 @@ class VulnerabilityAssessment:
 
     @staticmethod
     def run_vulnerability_scan(target):
-        command = ['openvas-cli', '-c', 'Full and Fast', '-T', target]
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, error = process.communicate()
-        scan_results = output.decode()
-        return scan_results
+        try:
+            command = ['openvas-cli', '-c', 'Full and Fast', '-T', target]
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, error = process.communicate()
+            scan_results = output.decode()
+            return scan_results
+        except FileNotFoundError:
+            print("openvas-cli tool not found. Install OpenVAS or provide another vulnerability scanning tool.")
 
     @staticmethod
     def process_scan_results(scan_results):
@@ -74,20 +94,26 @@ class VulnerabilityAssessment:
 
     @staticmethod
     def perform_web_vulnerability_scanning(target):
-        subprocess.run(['zap', '-target', target, '-quickurl', target])
+        try:
+            subprocess.run(['zap', '-target', target, '-quickurl', target])
+        except FileNotFoundError:
+            print("OWASP ZAP tool not found. Install OWASP ZAP or provide another web vulnerability scanning tool.")
 
     @staticmethod
     def perform_network_vulnerability_scanning(target):
-        scan_results = VulnerabilityAssessment.run_network_scan(target)
+        scan_results = Scanning.run_network_scan(target)
         VulnerabilityAssessment.process_scan_results(scan_results)
 
     @staticmethod
     def run_network_scan(target):
-        command = ['nmap', '-A', target]
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, error = process.communicate()
-        scan_results = output.decode()
-        return scan_results
+        try:
+            command = ['nmap', '-A', target]
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            output, error = process.communicate()
+            scan_results = output.decode()
+            return scan_results
+        except FileNotFoundError:
+            print("nmap tool not found. Install nmap or provide another network vulnerability scanning tool.")
 
 class Exploitation:
     @staticmethod
@@ -102,7 +128,7 @@ class Exploitation:
 
     @staticmethod
     def gain_access(target):
-        # Implement the code to gain access to the compromised system
+        # Implement the code to gain access to the system
         pass
 
     @staticmethod
@@ -116,36 +142,136 @@ class Reporting:
         # Implement the code to generate a report
         pass
 
+def get_target():
+    target = input("Enter the domain or IP address: ")
+    if not target.isdigit():
+        try:
+            target = socket.gethostbyname(target)
+        except socket.gaierror as e:
+            print(f"Error resolving domain: {str(e)}")
+            return None
+    return target
+
 if __name__ == '__main__':
-    domain = input("Enter the domain: ")
-    target = input("Enter the target IP address: ")
+    while True:
+        print("\nSelect an action:")
+        print("1. Perform Reconnaissance")
+        print("2. Perform Scanning")
+        print("3. Perform Enumeration")
+        print("4. Perform Vulnerability Assessment")
+        print("5. Perform Exploitation")
+        print("6. Perform Post-Exploitation")
+        print("7. Generate Report")
+        print("0. Exit")
 
-    # Reconnaissance
-    Reconnaissance.perform_whois_lookup(domain)
-    Reconnaissance.perform_dns_enumeration(domain)
-    Reconnaissance.perform_subdomain_enumeration(domain)
-    Reconnaissance.extract_service_headers(target)
+        choice = input("Enter your choice: ")
 
-    # Scanning
-    Scanning.perform_port_scanning(target)
+        if choice == '1':
+            target = get_target()
+            if target:
+                print("\nReconnaissance:")
+                print("1. Perform WHOIS lookup")
+                print("2. Perform DNS enumeration")
+                print("3. Perform subdomain enumeration")
+                print("4. Extract service headers")
 
-    # Enumeration
-    Enumeration.perform_service_enumeration(target)
+                sub_choice = input("Enter your choice: ")
 
-    # Vulnerability Assessment
-    VulnerabilityAssessment.perform_vulnerability_checks(target)
-    VulnerabilityAssessment.perform_web_vulnerability_scanning(target)
-    VulnerabilityAssessment.perform_network_vulnerability_scanning(target)
+                if sub_choice == '1':
+                    Reconnaissance.perform_whois_lookup(target)
+                elif sub_choice == '2':
+                    Reconnaissance.perform_dns_enumeration(target)
+                elif sub_choice == '3':
+                    Reconnaissance.perform_subdomain_enumeration(target)
+                elif sub_choice == '4':
+                    Reconnaissance.extract_service_headers(target)
+                else:
+                    print("Invalid choice. Please try again.")
 
-    # Exploitation
-    vulnerability = 'example_vulnerability'
-    Exploitation.develop_exploit_module(vulnerability)
-    Exploitation.automate_exploitation(target)
+        elif choice == '2':
+            target = get_target()
+            if target:
+                print("\nScanning:")
+                print("1. Perform port scanning")
 
-    # Post-Exploitation
-    Exploitation.gain_access(target)
-    Exploitation.enumerate_system_information(target)
+                sub_choice = input("Enter your choice: ")
 
-    # Reporting
-    findings = 'example_findings'
-    Reporting.generate_report(findings)
+                if sub_choice == '1':
+                    Scanning.perform_port_scanning(target)
+                else:
+                    print("Invalid choice. Please try again.")
+
+        elif choice == '3':
+            target = get_target()
+            if target:
+                print("\nEnumeration:")
+                print("1. Perform service enumeration")
+
+                sub_choice = input("Enter your choice: ")
+
+                if sub_choice == '1':
+                    Enumeration.perform_service_enumeration(target)
+                else:
+                    print("Invalid choice. Please try again.")
+
+        elif choice == '4':
+            target = get_target()
+            if target:
+                print("\nVulnerability Assessment:")
+                print("1. Perform vulnerability checks")
+                print("2. Perform web vulnerability scanning")
+                print("3. Perform network vulnerability scanning")
+
+                sub_choice = input("Enter your choice: ")
+
+                if sub_choice == '1':
+                    VulnerabilityAssessment.perform_vulnerability_checks(target)
+                elif sub_choice == '2':
+                    VulnerabilityAssessment.perform_web_vulnerability_scanning(target)
+                elif sub_choice == '3':
+                    VulnerabilityAssessment.perform_network_vulnerability_scanning(target)
+                else:
+                    print("Invalid choice. Please try again.")
+
+        elif choice == '5':
+            target = get_target()
+            if target:
+                print("\nExploitation:")
+                print("1. Develop exploit module")
+                print("2. Automate exploitation")
+
+                sub_choice = input("Enter your choice: ")
+
+                if sub_choice == '1':
+                    vulnerability = input("Enter the vulnerability: ")
+                    Exploitation.develop_exploit_module(vulnerability)
+                elif sub_choice == '2':
+                    Exploitation.automate_exploitation(target)
+                else:
+                    print("Invalid choice. Please try again.")
+
+        elif choice == '6':
+            target = get_target()
+            if target:
+                print("\nPost-Exploitation:")
+                print("1. Gain access")
+                print("2. Enumerate system information")
+
+                sub_choice = input("Enter your choice: ")
+
+                if sub_choice == '1':
+                    Exploitation.gain_access(target)
+                elif sub_choice == '2':
+                    Exploitation.enumerate_system_information(target)
+                else:
+                    print("Invalid choice. Please try again.")
+
+        elif choice == '7':
+            findings = input("Enter the findings: ")
+            Reporting.generate_report(findings)
+
+        elif choice == '0':
+            break
+
+        else:
+            print("Invalid choice. Please try again.")
