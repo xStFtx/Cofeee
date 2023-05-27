@@ -3,7 +3,6 @@ import socket
 import requests
 import whois
 import dns.resolver
-import threading
 
 class Reconnaissance:
     @staticmethod
@@ -28,7 +27,10 @@ class Reconnaissance:
     @staticmethod
     def perform_subdomain_enumeration(target):
         try:
-            subprocess.run(['sublist3r', '-d', target])
+            if not target.isdigit():
+                subprocess.run(['sublist3r', '-d', target])
+            else:
+                print("Please provide a domain name for subdomain enumeration.")
         except FileNotFoundError:
             print("sublist3r tool not found. Install sublist3r or provide another subdomain enumeration tool.")
 
@@ -48,8 +50,6 @@ class Reconnaissance:
         except FileNotFoundError:
             print("wfuzz tool not found. Install wfuzz or provide another fuzzing tool.")
 
-
-
 def perform_reconnaissance(target):
     print("\nReconnaissance:")
     print("1. Perform WHOIS lookup")
@@ -67,8 +67,10 @@ def perform_reconnaissance(target):
     elif sub_choice == '3':
         Reconnaissance.perform_subdomain_enumeration(target)
     elif sub_choice == '4':
+        target = 'https://' + target
         Reconnaissance.extract_service_headers(target)
     elif sub_choice == '5':
+        target = 'https://' + target + '/'
         wordlist = input("Enter the path to the wordlist: ")
         Reconnaissance.perform_fuzzing(target, wordlist)
     else:

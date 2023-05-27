@@ -13,13 +13,17 @@ def get_targets():
     if target:
         try:
             ip = socket.gethostbyname(target)
-            targets.append(ip)
+            targets.append({'domain': target, 'ip': ip})
         except socket.gaierror as e:
             print(f"Error resolving domain: {str(e)}")
     return targets
 
+def change_target():
+    global targets
+    targets = get_targets()
 
 def main():
+    global targets
     targets = get_targets()
     
     option_functions = {
@@ -29,7 +33,8 @@ def main():
         '4': perform_vulnerability_assessment,
         '5': perform_exploitation,
         '6': perform_post_exploitation,
-        '7': Reporting.generate_report
+        '7': Reporting.generate_report,
+        '8': change_target
     }
 
     while True:
@@ -41,6 +46,7 @@ def main():
         print("5. Perform Exploitation")
         print("6. Perform Post-Exploitation")
         print("7. Generate Report")
+        print("8. Change Target")
         print("0. Exit")
 
         choice = input("Enter your choice: ")
@@ -51,7 +57,15 @@ def main():
         # Check if the selected option exists in the dictionary
         if choice in option_functions:
             # Call the corresponding function based on the selected option
-            option_functions[choice](targets)
+            if choice == '8':
+                option_functions[choice]()
+            else:
+                for target in targets:
+                    if choice == '2':
+                        option_functions[choice](target['ip'])
+                    else:
+                        option_functions[choice](target['domain'])
+
         else:
             print("Invalid choice. Please try again.")
 
