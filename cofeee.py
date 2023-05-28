@@ -6,10 +6,9 @@ import itertools
 import os
 import threading
 import whois
+import logging
 import concurrent.futures
-import random
 import time
-
 
 COMMON_SUBDOMAINS = ["www", "mail", "remote", "blog", "webmail", "server", "ns1", "ns2", "smtp", "secure", "vpn", "m",
                      "shop", "ftp", "mail2", "test", "portal", "ns", "ww1", "host", "support", "dev", "web", "bbs",
@@ -19,9 +18,12 @@ COMMON_SUBDOMAINS = ["www", "mail", "remote", "blog", "webmail", "server", "ns1"
 
 COMMON_PORTS = [80, 443, 22]
 
-MAX_CONCURRENT_REQUESTS = 5
-
+MAX_CONCURRENT_REQUESTS = 10
 MAX_RETRIES = 3
+INITIAL_BACKOFF_DELAY = 1
+
+logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s")
+
 
 def find_subdomains(target):
     subdomains = []
@@ -35,6 +37,7 @@ def find_subdomains(target):
             pass
 
     return subdomains
+
 
 def scan_ports(subdomain):
     open_ports = []
@@ -51,6 +54,7 @@ def scan_ports(subdomain):
                     open_ports.append(port)
 
     return open_ports
+
 
 def identify_technologies(subdomain):
     technologies = []
@@ -70,6 +74,7 @@ def identify_technologies(subdomain):
 
     return technologies
 
+
 def test_vulnerabilities(subdomain):
     vulnerabilities = []
 
@@ -80,6 +85,7 @@ def test_vulnerabilities(subdomain):
             vulnerabilities.append("WordPress login page exposed")
 
     return vulnerabilities
+
 
 def gather_information(subdomain):
     information = {}
@@ -100,6 +106,7 @@ def gather_information(subdomain):
 
     return information
 
+
 def exploit_vulnerability(subdomain):
     response = requests.get("https://" + subdomain)
 
@@ -110,19 +117,20 @@ def exploit_vulnerability(subdomain):
             exploit_response = requests.post(login_url, data=payload)
 
             if exploit_response.status_code == 200:
-                print("Exploited vulnerability in", subdomain)
+                logging.info("Exploited vulnerability in %s", subdomain)
+
 
 def additional_functionality(subdomain, technologies, vulnerabilities, information):
     try:
         ssl_info = socket.getaddrinfo(subdomain, 443, socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
         if ssl_info:
-            print("SSL Certificate is valid for", subdomain)
+            logging.info("SSL Certificate is valid for %s", subdomain)
     except socket.error:
         pass
 
     try:
         ip_address = socket.gethostbyname(subdomain)
-        print("IP Address for", subdomain + ":", ip_address)
+        logging.info("IP Address for %s: %s", subdomain, ip_address)
     except socket.error:
         pass
 
@@ -144,62 +152,63 @@ def additional_functionality(subdomain, technologies, vulnerabilities, informati
             try:
                 response = requests.get(url, timeout=10)
                 if response.status_code == 200:
-                    print("Found directory:", url)
+                    logging.info("Found directory: %s", url)
             except (requests.exceptions.RequestException, socket.error) as e:
-                print(f"Error occurred while requesting {url}: {e}")
+                logging.error("Error occurred while requesting %s: %s", url, e)
+
 
 def process_subdomain(target, subdomain):
     open_ports = scan_ports(subdomain)
-    print("Open Ports for", subdomain + ":", open_ports)
+    logging.info("Open Ports for %s: %s", subdomain, open_ports)
 
     technologies = identify_technologies(subdomain)
-    print("Technologies for", subdomain + ":", technologies)
+    logging.info("Technologies for %s: %s", subdomain, technologies)
 
     vulnerabilities = test_vulnerabilities(subdomain)
-    print("Vulnerabilities for", subdomain + ":", vulnerabilities)
+    logging.info("Vulnerabilities for %s: %s", subdomain, vulnerabilities)
 
     information = gather_information(subdomain)
-    print("Information for", subdomain + ":", information)
+    logging.info("Information for %s: %s", subdomain, information)
 
     exploit_vulnerability(subdomain)
 
     additional_functionality(subdomain, technologies, vulnerabilities, information)
 
 
-def process_subdomain_with_retry(target, subdomain, retry=0):
+def handle_request(url):
     try:
-        process_subdomain(target, subdomain)
+        response = requests.get(url, timeout=10)
+        return response
     except (requests.exceptions.RequestException, socket.error) as e:
-        if retry < MAX_RETRIES:
-            delay = 2 ** retry  # Exponential backoff delay
-            print(f"Retry #{retry + 1} for {subdomain} after {delay} seconds")
-            time.sleep(delay)
-            process_subdomain_with_retry(target, subdomain, retry=retry + 1)
-        else:
-            print(f"Failed to process {subdomain} after {retry} retries: {e}")
- 
+        logging.error("Error occurred while requesting %s: %s", url, e)
+        return None
 
 
 def main():
-    targets = ["backblaze.com", "google.com"]
+    try:
+        targets = ["backblaze.com", "google.com"]
 
-    for target in targets:
-        subdomains = find_subdomains(target)
-        print("Subdomains:", subdomains)
+        for target in targets:
+            subdomains = find_subdomains(target)
+            logging.info("Subdomains: %s", subdomains)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT_REQUESTS) as executor:
-            futures = []
-            for subdomain in subdomains:
-                future = executor.submit(process_subdomain_with_retry, target, subdomain)
-                futures.append(future)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT_REQUESTS) as executor:
+                futures = []
+                for subdomain in subdomains:
+                    url = "https://" + subdomain
+                    future = executor.submit(handle_request, url)
+                    futures.append(future)
 
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    print(f"Error occurred: {e}")
+                for future, subdomain in zip(futures, subdomains):
+                    response = future.result()
+                    if response and response.status_code == 200:
+                        logging.info("Successful response from %s", subdomain)
+                        process_subdomain(target, subdomain)
 
-        time.sleep(1)  # Delay between targets to avoid overwhelming the server
+        logging.info("Scanning completed.")
+
+    except KeyboardInterrupt:
+        logging.info("Keyboard interrupt received. Exiting...")
 
 
 if __name__ == "__main__":
