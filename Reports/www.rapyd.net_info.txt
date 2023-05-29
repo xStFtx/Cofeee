@@ -1,0 +1,14 @@
+Subdomain: www.rapyd.net
+Open Ports: [80, 443]
+Technologies: ['jQuery', 'jQuery', 'jQuery']
+Vulnerabilities: []
+Information:
+Domain Name: ['RAPYD.NET', 'rapyd.net']
+Registrar: GoDaddy.com, LLC
+Creation Date: [datetime.datetime(2017, 6, 25, 14, 0, 41), datetime.datetime(2017, 6, 25, 9, 0, 41)]
+Expiration Date: [datetime.datetime(2024, 6, 25, 14, 0, 41), datetime.datetime(2024, 6, 25, 9, 0, 41)]
+Updated Date: [datetime.datetime(2022, 10, 3, 21, 48, 57), datetime.datetime(2019, 4, 24, 8, 43, 32)]
+Name Servers: ['NS-1499.AWSDNS-59.ORG', 'NS-1897.AWSDNS-45.CO.UK', 'NS-386.AWSDNS-48.COM', 'NS-565.AWSDNS-06.NET']
+Status: ['clientDeleteProhibited https://icann.org/epp#clientDeleteProhibited', 'clientRenewProhibited https://icann.org/epp#clientRenewProhibited', 'clientTransferProhibited https://icann.org/epp#clientTransferProhibited', 'clientUpdateProhibited https://icann.org/epp#clientUpdateProhibited']
+Emails: abuse@godaddy.com
+DNSSEC: unsigned
