@@ -8,6 +8,8 @@ import whois
 import logging
 import concurrent.futures
 import time
+import subprocess
+import re
 from .fuzzer import Fuzzer
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s")
@@ -28,6 +30,8 @@ REPORTS_DIRECTORY = "Reports"
 
 # Lock for file writing
 FILE_LOCK = threading.Lock()
+
+wlf=  "wordlists/dirbrute.txt"
 
 
 class Scanner:
@@ -58,9 +62,8 @@ class Scanner:
                         self.process_subdomain(target, subdomain)
                         thread = threading.Thread(target=self.crawl_and_analyze, args=(subdomain,))
                         thread.start()
+                        self.perform_web_application_fingerprinting(subdomain)
 
-                        fuzzer = Fuzzer(subdomain,)
-                        fuzzer.start()
 
     def find_subdomains(self, target):
         subdomains = []
@@ -165,6 +168,18 @@ class Scanner:
             for script in scripts:
                 if "jquery" in str(script):
                     technologies.append("jQuery")
+
+            # Web application fingerprinting using response headers
+            server_header = response.headers.get("Server")
+            if server_header:
+                if re.search(r"nginx", server_header, re.I):
+                    technologies.append("Nginx")
+                elif re.search(r"apache", server_header, re.I):
+                    technologies.append("Apache")
+
+            # Additional fingerprinting techniques
+            if "wp-login.php" in response.text:
+                technologies.append("WordPress")
 
         return technologies
 
@@ -285,8 +300,7 @@ class Scanner:
                 # Analyze the response or extract information
                 # Example: Parse HTML content using BeautifulSoup
                 soup = BeautifulSoup(response.content, "html.parser")
-                # Perform analysis on the soup object
-        pass
+                # Perform analysis on the soup object finish this function
 
     def make_request(self, url):
         retries = 0
@@ -304,3 +318,27 @@ class Scanner:
 
         logging.error("Max retries exceeded for requesting %s", url)
         return None
+    
+    def perform_web_application_fingerprinting(self, subdomain):
+        response = requests.get("https://" + subdomain)
+
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, "html.parser")
+
+            if soup.find("meta", attrs={"name": "generator", "content": "WordPress"}):
+                logging.info("Detected web application: WordPress")
+
+            scripts = soup.find_all("script")
+            for script in scripts:
+                if "jquery" in str(script):
+                    logging.info("Detected JavaScript library: jQuery")
+
+            server_header = response.headers.get("Server")
+            if server_header:
+                if re.search(r"nginx", server_header, re.I):
+                    logging.info("Detected web server: Nginx")
+                elif re.search(r"apache", server_header, re.I):
+                    logging.info("Detected web server: Apache")
+
+            if "wp-login.php" in response.text:
+                logging.info("Detected web application: WordPress")

@@ -1,6 +1,6 @@
 Subdomain: support.rapyd.net
 Open Ports: [80, 443]
-Technologies: []
+Technologies: ['Nginx']
 Vulnerabilities: []
 Information:
 Domain Name: ['RAPYD.NET', 'rapyd.net']
