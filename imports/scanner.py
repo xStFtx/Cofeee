@@ -10,7 +10,6 @@ import concurrent.futures
 import time
 import subprocess
 import re
-from .fuzzer import Fuzzer
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s")
 
@@ -63,7 +62,6 @@ class Scanner:
                         thread = threading.Thread(target=self.crawl_and_analyze, args=(subdomain,))
                         thread.start()
                         self.perform_web_application_fingerprinting(subdomain)
-
 
     def find_subdomains(self, target):
         subdomains = []

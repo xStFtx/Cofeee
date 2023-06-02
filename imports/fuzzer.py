@@ -9,7 +9,7 @@ class Fuzzer:
         cmd = [
             'ffuf',
             '-u', f'{self.target_url}/FUZZ',
-            '-w', self.wordlist_path,
+            '-w', f'wordlists/{self.wordlist_path}',
             '-t', '50',
             '-mc', '200',
             '-fs', '0'
@@ -30,7 +30,7 @@ class Fuzzer:
             cmd = [
                 'ffuf',
                 '-u', f'{self.target_url}/FUZZ{extension}',
-                '-w', self.wordlist_path,
+                '-w', f'wordlists/{self.wordlist_path}',
                 '-t', '50',
                 '-mc', '200',
                 '-fs', '0'
@@ -44,3 +44,8 @@ class Fuzzer:
             else:
                 print(f'Error occurred while fuzzing files with extension {extension}: {stderr}')
 
+    def run(self):
+        print("Starting fuzzing...")
+        self.fuzz_directories()
+        self.fuzz_files()
+        print("Fuzzing completed.")
