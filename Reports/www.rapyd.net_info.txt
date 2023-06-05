@@ -1,6 +1,6 @@
 Subdomain: www.rapyd.net
 Open Ports: [80, 443]
-Technologies: ['jQuery', 'jQuery', 'jQuery', 'jQuery']
+Technologies: ['jQuery', 'jQuery', 'jQuery']
 Vulnerabilities: []
 Information:
 Domain Name: ['RAPYD.NET', 'rapyd.net']

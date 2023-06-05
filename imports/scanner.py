@@ -18,7 +18,7 @@ COMMON_SUBDOMAINS = ["www", "mail", "remote", "blog", "webmail", "server", "ns1"
                      "shop", "ftp", "mail2", "test", "portal", "ns", "ww1", "host", "support", "dev", "web", "bbs",
                      "ww42", "mx", "email", "cloud", "1", "mail1", "2", "forum", "owa", "www2", "gw", "admin", "store",
                      "mx1", "cdn", "api", "exchange", "app", "gov", "2tty", "vps", "govyty", "hgfgdf", "news", "1rer",
-                     "lkjkui"]
+                     "lkjkui",""]
 COMMON_PORTS = [80, 443, 22]
 MAX_CONCURRENT_REQUESTS = 10
 MAX_RETRIES = 3
@@ -67,7 +67,10 @@ class Scanner:
         subdomains = []
 
         for subdomain in COMMON_SUBDOMAINS:
-            domain = subdomain + "." + target
+            if subdomain != "":
+                domain = subdomain + "." + target
+            else:
+                domain = target
             try:
                 socket.gethostbyname(domain)
                 subdomains.append(domain)
