@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import string
 import random
+import json
 
 class APIPenetrationTester:
     def __init__(self, base_url):
@@ -18,16 +19,22 @@ class APIPenetrationTester:
         signature = hmac.new(secret_key.encode(), data.encode(), hashlib.sha256).hexdigest()
         return signature
 
+
+
     def login(self, username, password):
         login_url = self.base_url + '/login'
         data = {'username': username, 'password': password}
         response = self.session.post(login_url, json=data)
 
-        if response.status_code == 200:
-            self.token = response.json().get('token')
+        try:
+            response_data = response.json()
+            self.token = response_data.get('token')
             return True
+        except json.JSONDecodeError:
+            print('Invalid JSON response or missing "token" field')
+            return False
 
-        return False
+
 
     def send_authenticated_request(self, method, path, headers=None, params=None, data=None):
         if not self.token:
@@ -70,6 +77,6 @@ class APIPenetrationTester:
             self.fuzz_payloads('POST', '/api/v1/users')
 
 if __name__ == '__main__':
-    base_url = 'https://api.example.com'  # Replace with the target API base URL
+    base_url = 'https://api.sendgrid.com'  # Replace with the target API base URL
     tester = APIPenetrationTester(base_url)
     tester.run_tests()
