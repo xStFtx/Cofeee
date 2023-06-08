@@ -1,5 +1,0 @@
-Subdomain: www.backblaze.com
-Open Ports: [80, 443]
-Technologies: ['jQuery', 'jQuery', 'jQuery']
-Vulnerabilities: []
-Information: {'Domain Name': 'BACKBLAZE.COM', 'Registrar': 'Cloudflare, Inc.', 'Creation Date': datetime.datetime(2007, 4, 2, 23, 23, 41), 'Expiration Date': datetime.datetime(2026, 4, 2, 23, 23, 41), 'Updated Date': [datetime.datetime(2021, 11, 22, 5, 15, 33), datetime.datetime(2021, 11, 22, 9, 44, 23)], 'Name Servers': ['DOLLY.NS.CLOUDFLARE.COM', 'KIRK.NS.CLOUDFLARE.COM', 'dolly.ns.cloudflare.com', 'kirk.ns.cloudflare.com'], 'Status': ['clientTransferProhibited https://icann.org/epp#clientTransferProhibited', 'clienttransferprohibited https://icann.org/epp#clienttransferprohibited'], 'Emails': 'registrar-abuse@cloudflare.com', 'DNSSEC': 'unsigned'}

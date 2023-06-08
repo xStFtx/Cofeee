@@ -42,7 +42,7 @@ class Fuzzer:
         else:
             print(f'Error occurred while fuzzing files with extension {extension}: {stderr}')
 
-    def run(self):
+    async def run(self):
         print("Starting fuzzing...")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=250) as executor:

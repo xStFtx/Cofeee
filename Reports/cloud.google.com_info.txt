@@ -1,5 +1,0 @@
-Subdomain: cloud.google.com
-Open Ports: [80, 443]
-Technologies: []
-Vulnerabilities: []
-Information: {'Domain Name': 'GOOGLE.COM', 'Registrar': 'MarkMonitor Inc.', 'Creation Date': datetime.datetime(1997, 9, 15, 4, 0), 'Expiration Date': datetime.datetime(2028, 9, 14, 4, 0), 'Updated Date': datetime.datetime(2019, 9, 9, 15, 39, 4), 'Name Servers': ['NS1.GOOGLE.COM', 'NS2.GOOGLE.COM', 'NS3.GOOGLE.COM', 'NS4.GOOGLE.COM'], 'Status': ['clientDeleteProhibited https://icann.org/epp#clientDeleteProhibited', 'clientTransferProhibited https://icann.org/epp#clientTransferProhibited', 'clientUpdateProhibited https://icann.org/epp#clientUpdateProhibited', 'serverDeleteProhibited https://icann.org/epp#serverDeleteProhibited', 'serverTransferProhibited https://icann.org/epp#serverTransferProhibited', 'serverUpdateProhibited https://icann.org/epp#serverUpdateProhibited'], 'Emails': 'abusecomplaints@markmonitor.com', 'DNSSEC': 'unsigned'}

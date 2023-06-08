@@ -1,3 +1,4 @@
+import asyncio
 import requests
 import socket
 from bs4 import BeautifulSoup
@@ -6,10 +7,8 @@ import os
 import threading
 import whois
 import logging
-import concurrent.futures
-import time
-import subprocess
-import re
+from aiohttp import ClientSession
+import urllib.parse
 
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s] [%(levelname)s] %(message)s")
 
@@ -18,7 +17,7 @@ COMMON_SUBDOMAINS = ["www", "mail", "remote", "blog", "webmail", "server", "ns1"
                      "shop", "ftp", "mail2", "test", "portal", "ns", "ww1", "host", "support", "dev", "web", "bbs",
                      "ww42", "mx", "email", "cloud", "1", "mail1", "2", "forum", "owa", "www2", "gw", "admin", "store",
                      "mx1", "cdn", "api", "exchange", "app", "gov", "2tty", "vps", "govyty", "hgfgdf", "news", "1rer",
-                     "lkjkui",""]
+                     "lkjkui", ""]
 COMMON_PORTS = [80, 443, 22]
 MAX_CONCURRENT_REQUESTS = 10
 MAX_RETRIES = 3
@@ -30,7 +29,7 @@ REPORTS_DIRECTORY = "Reports"
 # Lock for file writing
 FILE_LOCK = threading.Lock()
 
-wlf=  "wordlists/dirbrute.txt"
+wlf = "wordlists/dirbrute.txt"
 
 
 class Scanner:
@@ -39,29 +38,34 @@ class Scanner:
         self.wordlist_directory = "wordlists"
         self.dir_file = "common_dir"
 
-    def run(self):
+    async def run(self):
         # Create Reports directory if it doesn't exist
         if not os.path.exists(REPORTS_DIRECTORY):
             os.makedirs(REPORTS_DIRECTORY)
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_CONCURRENT_REQUESTS) as executor:
+        async with ClientSession() as session:
+            tasks = []
             for target in self.target_domains:
                 subdomains = self.find_subdomains(target)
 
-                futures = []
                 for subdomain in subdomains:
                     url = "https://" + subdomain
 
-                    future = executor.submit(self.handle_request, url)
-                    futures.append((subdomain, future))
+                    task = asyncio.ensure_future(self.handle_request(session, url))
+                    tasks.append((subdomain, task))
 
-                for subdomain, future in futures:
-                    response = future.result()
-                    if response and response.status_code == 200:
-                        self.process_subdomain(target, subdomain)
-                        thread = threading.Thread(target=self.crawl_and_analyze, args=(subdomain,))
-                        thread.start()
-                        self.perform_web_application_fingerprinting(subdomain)
+            for subdomain, task in tasks:
+                response = await task
+                if response and response.status == 200:
+                    self.process_subdomain(target, subdomain)
+                    thread = threading.Thread(target=self.crawl_and_analyze, args=(subdomain,))
+                    thread.start()
+                    self.perform_web_application_fingerprinting(subdomain)
+                else:
+                    logging.error("Failed to retrieve response for subdomain: %s", subdomain)
+
+        self.port_scan()
+
 
     def find_subdomains(self, target):
         subdomains = []
@@ -79,201 +83,44 @@ class Scanner:
 
         return subdomains
 
-    def handle_request(self, url):
-        try:
-            response = requests.get(url, timeout=10)
-            return response
-        except (requests.exceptions.RequestException, socket.error) as e:
-            if isinstance(e, requests.exceptions.HTTPError) and e.response.status_code == 404:
-                # Perform URL hacking techniques here
-                hacked_url = url + "/admin"
-                logging.info("Trying hacked URL: %s", hacked_url)
-                try:
-                    response = requests.get(hacked_url, timeout=10)
+    async def handle_request(self, session, url):
+        retries = 0
+        backoff_delay = INITIAL_BACKOFF_DELAY
+
+        while retries < MAX_RETRIES:
+            try:
+                async with session.get(url, timeout=10) as response:
                     return response
-                except (requests.exceptions.RequestException, socket.error) as e:
-                    logging.error("Error occurred while requesting %s: %s", hacked_url, e)
-                    return None
-            else:
+            except (requests.exceptions.RequestException, socket.error) as e:
                 logging.error("Error occurred while requesting %s: %s", url, e)
-                return None
+                retries += 1
+                await asyncio.sleep(backoff_delay)
+                backoff_delay *= 2
+
+        logging.error("Max retries exceeded for requesting %s", url)
+        return None
+
 
 
     def process_subdomain(self, target, subdomain):
-        open_ports = self.scan_ports(subdomain)
-        logging.info("Open Ports for %s: %s", subdomain, open_ports)
-
-        technologies = self.identify_technologies(subdomain)
-        logging.info("Technologies for %s: %s", subdomain, technologies)
-
-        vulnerabilities = self.test_vulnerabilities(subdomain)
-        logging.info("Vulnerabilities for %s: %s", subdomain, vulnerabilities)
-
-        information = self.gather_information(subdomain)
-        logging.info("Information for %s: %s", subdomain, information)
-
-        self.exploit_vulnerability(subdomain)
-
-        self.additional_functionality(subdomain, technologies, vulnerabilities, information)
-
-        if "api" in subdomain:  # Check if "api" is in the subdomain
-            self.enumerate_api(subdomain)
-        
-        scanned_directories = self.scan_directories(subdomain)
-        logging.info("Scanned Directories for %s: %s", subdomain, scanned_directories)
-    
-    def scan_ports(self, subdomain):
-        open_ports = []
-
-        scanner = nmap.PortScanner()
-
-        scanner.scan(subdomain, arguments=f"-sS -p {','.join(map(str, COMMON_PORTS))}")
-
-        for host in scanner.all_hosts():
-            for proto in scanner[host].all_protocols():
-                ports = scanner[host][proto].keys()
-                for port in ports:
-                    if scanner[host][proto][port]['state'] == 'open':
-                        open_ports.append(port)
-
-        return open_ports
-    
-    def enumerate_api(self, subdomain):
-        api_endpoints = [
-            "/api",
-            "/v1",
-            "/v2",
-            "/graphql",
-            # Add more API endpoints to check
-        ]
-
-        for endpoint in api_endpoints:
-            url = f"https://{subdomain}{endpoint}"
-
-            response = self.make_request(url)
-            if response and response.status_code == 200:
-                logging.info("API Endpoint found: %s", url)
-
-    def identify_technologies(self, subdomain):
-        technologies = []
-
-        response = requests.get("https://" + subdomain)
-
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, "html.parser")
-
-            if soup.find("meta", attrs={"name": "generator", "content": "WordPress"}):
-                technologies.append("WordPress")
-
-            scripts = soup.find_all("script")
-            for script in scripts:
-                if "jquery" in str(script):
-                    technologies.append("jQuery")
-
-            # Web application fingerprinting using response headers
-            server_header = response.headers.get("Server")
-            if server_header:
-                if re.search(r"nginx", server_header, re.I):
-                    technologies.append("Nginx")
-                elif re.search(r"apache", server_header, re.I):
-                    technologies.append("Apache")
-
-            # Additional fingerprinting techniques
-            if "wp-login.php" in response.text:
-                technologies.append("WordPress")
-
-        return technologies
-
-    def test_vulnerabilities(self, subdomain):
-        vulnerabilities = []
-
-        response = requests.get("https://" + subdomain)
-
-        if response.status_code == 200:
-            if "wp-login.php" in response.text:
-                vulnerabilities.append("WordPress login page exposed")
-
-        return vulnerabilities
-
-    def gather_information(self, subdomain):
-        information = {}
+        logging.info("Processing subdomain: %s", subdomain)
 
         try:
-            w = whois.whois(subdomain)
-            information['Domain Name'] = w.domain_name
-            information['Registrar'] = w.registrar
-            information['Creation Date'] = w.creation_date
-            information['Expiration Date'] = w.expiration_date
-            information['Updated Date'] = w.updated_date
-            information['Name Servers'] = w.name_servers
-            information['Status'] = w.status
-            information['Emails'] = w.emails
-            information['DNSSEC'] = w.dnssec
-        except whois.parser.PywhoisError:
-            pass
+            # Create subdomain directory if it doesn't exist
+            subdomain_dir = os.path.join(REPORTS_DIRECTORY, target, subdomain)
+            if not os.path.exists(subdomain_dir):
+                os.makedirs(subdomain_dir)
 
-        return information
-
-    def exploit_vulnerability(self, subdomain):
-        response = requests.get("https://" + subdomain)
-
-        if response.status_code == 200:
-            if "wp-login.php" in response.text:
-                login_url = "https://" + subdomain + "/wp-login.php"
-                payload = {"username": "admin", "password": "password123"}
-                exploit_response = requests.post(login_url, data=payload)
-
-                if exploit_response.status_code == 200:
-                    logging.info("Exploited vulnerability in %s", subdomain)
-
-    def additional_functionality(self, subdomain, technologies, vulnerabilities, information):
-        try:
-            ssl_info = socket.getaddrinfo(subdomain, 443, socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP)
-            if ssl_info:
-                logging.info("SSL Certificate is valid for %s", subdomain)
-        except socket.error:
-            pass
-
-        try:
-            ip_address = socket.gethostbyname(subdomain)
-            logging.info("IP Address for %s: %s", subdomain, ip_address)
-        except socket.error:
-            pass
-
-        filename = os.path.join(REPORTS_DIRECTORY, subdomain + "_info.txt")
-        with FILE_LOCK:
-            with open(filename, "w") as file:
-                file.write("Subdomain: " + subdomain + "\n")
-                file.write("Open Ports: " + str(self.scan_ports(subdomain)) + "\n")
-                file.write("Technologies: " + str(technologies) + "\n")
-                file.write("Vulnerabilities: " + str(vulnerabilities) + "\n")
-                file.write("Information:\n")
-                for key, value in information.items():
-                    file.write(key + ": " + str(value) + "\n")
-
-    def scan_directories(self, subdomain):
-        directories = []
-
-        common_directories = [
-            "/admin",
-            "/login",
-            "/secret",
-            # Add more common directories to scan
-        ]
-
-        for directory in common_directories:
-            url = f"https://{subdomain}{directory}"
-
-            response = self.make_request(url)
-            if response and response.status_code == 200:
-                directories.append(directory)
-
-        return directories
+            self.save_screenshot(subdomain, subdomain_dir)
+            self.save_html(subdomain, subdomain_dir)
+            self.save_whois(subdomain, subdomain_dir)
+        except Exception as e:
+            logging.error("Error occurred while processing subdomain %s: %s", subdomain, e)
 
     def crawl_and_analyze(self, subdomain):
         logging.info("Crawling and analyzing subdomain: %s", subdomain)
 
-        file_path = os.path.join(self.wordlist_directory, f"{self.dir_file}.txt")
+        file_path = os.path.join(self.wordlist_directory, "common_dir.txt")
         try:
             with open(file_path, "r") as file:
                 scanned_directories = [line.strip() for line in file.readlines()]
@@ -288,58 +135,107 @@ class Scanner:
             # Example: Parse HTML content using BeautifulSoup
             soup = BeautifulSoup(response.content, "html.parser")
             # Perform analysis on the soup object
-            
+
         with open(file_path, "r") as file:
             scanned_directories = [line.strip() for line in file.readlines()]
 
         # Crawl scanned directories
-        scanned_directories = self.scan_directories(subdomain)
         for directory in scanned_directories:
-            url = f"https://{subdomain}/{directory}"
+            # Construct the URL using subdomain and directory separately
+            url = urllib.parse.urljoin(f"https://{subdomain}/", directory)
             response = self.make_request(url)
             if response and response.status_code == 200:
                 # Analyze the response or extract information
                 # Example: Parse HTML content using BeautifulSoup
                 soup = BeautifulSoup(response.content, "html.parser")
-                # Perform analysis on the soup object finish this function
+                # Perform analysis on the soup object
+
+    def extract_links(self, url):
+        links = []
+
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, "html.parser")
+                for link in soup.find_all("a"):
+                    href = link.get("href")
+                    if href:
+                        links.append(href)
+        except (requests.exceptions.RequestException, socket.error) as e:
+            logging.error("Error occurred while extracting links from %s: %s", url, e)
+
+        return links
+
+    def save_screenshot(self, subdomain, subdomain_dir):
+        pass
+
+    def save_html(self, subdomain, subdomain_dir):
+        url = "https://" + subdomain
+        filename = os.path.join(subdomain_dir, "index.html")
+
+        try:
+            response = requests.get(url)
+            if response.status_code == 200:
+                with open(filename, "w") as f:
+                    f.write(response.text)
+            else:
+                logging.error("Failed to save HTML for %s. Status code: %s", url, response.status_code)
+        except (requests.exceptions.RequestException, socket.error, FileNotFoundError) as e:
+            logging.error("Error occurred while saving HTML for %s: %s", url, e)
+
+    def save_whois(self, subdomain, subdomain_dir):
+        domain = subdomain.split("://")[-1]
+        filename = os.path.join(subdomain_dir, "whois.txt")
+
+        try:
+            w = whois.whois(domain)
+            with open(filename, "w") as f:
+                f.write(str(w))
+        except (whois.parser.PywhoisError, socket.error, AttributeError) as e:
+            logging.error("Error occurred while saving WHOIS for %s: %s", subdomain, e)
+
+    def perform_web_application_fingerprinting(self, subdomain):
+        pass
 
     def make_request(self, url):
-        retries = 0
-        backoff_delay = INITIAL_BACKOFF_DELAY
-
-        while retries < MAX_RETRIES:
-            try:
-                response = requests.get(url, timeout=10)
-                return response
-            except (requests.exceptions.RequestException, socket.error) as e:
-                logging.error("Error occurred while requesting %s: %s", url, e)
-                retries += 1
-                time.sleep(backoff_delay)
-                backoff_delay *= 2
-
-        logging.error("Max retries exceeded for requesting %s", url)
-        return None
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Check for HTTP errors
+            return response
+        except Exception as e:
+            logging.error("Error occurred while making request to %s: %s", url, e)
+            return None
     
-    def perform_web_application_fingerprinting(self, subdomain):
-        response = requests.get("https://" + subdomain)
 
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, "html.parser")
 
-            if soup.find("meta", attrs={"name": "generator", "content": "WordPress"}):
-                logging.info("Detected web application: WordPress")
+    def port_scan(self):
+        nm = nmap.PortScanner()
 
-            scripts = soup.find_all("script")
-            for script in scripts:
-                if "jquery" in str(script):
-                    logging.info("Detected JavaScript library: jQuery")
+        for target in self.target_domains:
+            try:
+                nm.scan(target, arguments="-p-")
+                for host in nm.all_hosts():
+                    for port in nm[host].all_tcp():
+                        if nm[host].has_tcp(port) and nm[host]['tcp'][port]['state'] == 'open':
+                            logging.info(f"[Port Scan] {host}:{port} is open")
+            except Exception as e:
+                logging.error(f"Error occurred during port scan for {target}: {e}")
 
-            server_header = response.headers.get("Server")
-            if server_header:
-                if re.search(r"nginx", server_header, re.I):
-                    logging.info("Detected web server: Nginx")
-                elif re.search(r"apache", server_header, re.I):
-                    logging.info("Detected web server: Apache")
+    def scan_directories(self,target):
+        dirbrute = []
+        directories = []
 
-            if "wp-login.php" in response.text:
-                logging.info("Detected web application: WordPress")
+        try:
+            with open(wlf, "r") as file:
+                dirbrute = [line.strip() for line in file.readlines()]
+        except FileNotFoundError:
+            logging.error(f"File not found: {wlf}")
+
+        for subdomain in COMMON_SUBDOMAINS:
+            for directory in dirbrute:
+                url = f"https://{subdomain}.{target}/{directory}"
+                response = self.make_request(url)
+                if response and response.status_code == 200:
+                    logging.info(f"[Directory Brute Force] Found: {url}")
+                    directories.append(directory)
+        return directories
